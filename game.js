@@ -119,20 +119,83 @@ function playDeathSound() {
   });
 }
 
+// ─── Leaderboard ──────────────────────────────────────────────────────────────
+const LB_KEY = 'fishgame_lb';
+
+function loadLB() { return JSON.parse(localStorage.getItem(LB_KEY) || '[]'); }
+
+function saveLB(name, score, fishEaten) {
+  const lb = loadLB();
+  lb.push({ name, score, fish: fishEaten, date: new Date().toLocaleDateString() });
+  lb.sort((a, b) => b.score - a.score);
+  lb.splice(10);
+  localStorage.setItem(LB_KEY, JSON.stringify(lb));
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderLB() {
+  const lb = loadLB();
+  const list = document.getElementById('lbList');
+  const MEDALS = ['🥇', '🥈', '🥉'];
+  if (lb.length === 0) {
+    list.innerHTML = '<p class="lb-empty">No scores yet. Be the first!</p>';
+    return;
+  }
+  list.innerHTML = lb.map((entry, i) => `
+    <div class="lb-entry${i < 3 ? ` rank-${i + 1}` : ''}">
+      <span class="lb-rank">${i < 3 ? MEDALS[i] : `#${i + 1}`}</span>
+      <span class="lb-name">${escapeHtml(entry.name)}</span>
+      <span class="lb-score">${Number(entry.score).toLocaleString()}</span>
+      <span class="lb-meta">${Number(entry.fish)}🐟 · ${escapeHtml(entry.date)}</span>
+    </div>`).join('');
+}
+
+// ─── Overlay Helpers ──────────────────────────────────────────────────────────
+function lbIsVisible() {
+  return !document.getElementById('lbOverlay').classList.contains('hidden');
+}
+
+function showNameOverlay() {
+  touchTarget = null;
+  for (const k in keys) keys[k] = false;  // clear stuck keys before overlay takes focus
+  document.getElementById('nameOverlay').classList.remove('hidden');
+  document.getElementById('lbOverlay').classList.add('hidden');
+  if (gameState === 'playing') gameState = 'start';
+  setTimeout(() => document.getElementById('nameInput').focus(), 50);
+}
+
+function showLeaderboard() {
+  renderLB();
+  document.getElementById('lbOverlay').classList.remove('hidden');
+  document.getElementById('nameOverlay').classList.add('hidden');
+}
+
 // ─── Input ────────────────────────────────────────────────────────────────────
 const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.key] = true;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
-  if ((e.key === ' ' || e.key === 'Enter') && gameState !== 'playing') startGame();
+  if ((e.key === ' ' || e.key === 'Enter') && gameState === 'dead' && !lbIsVisible()) startGame();
+  if (e.key === 'Escape') showNameOverlay();
 });
 window.addEventListener('keyup', e => { keys[e.key] = false; });
-canvas.addEventListener('click', () => { if (gameState !== 'playing') startGame(); });
+
+canvas.addEventListener('click', () => {
+  if (gameState === 'dead' && !lbIsVisible()) startGame();
+});
 
 let touchTarget = null;
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  if (gameState !== 'playing') { startGame(); return; }
+  if (gameState === 'dead' && !lbIsVisible()) { startGame(); return; }
+  if (gameState !== 'playing') return;
   const r = canvas.getBoundingClientRect();
   touchTarget = {
     x: (e.touches[0].clientX - r.left) * (canvas.width / r.width),
@@ -163,7 +226,6 @@ function drawFish(x, y, size, color, facingRight, mouthOpen = 0) {
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
-  // Tail shading
   ctx.fillStyle = 'rgba(0,0,0,0.2)';
   ctx.fill();
 
@@ -211,7 +273,6 @@ function drawFish(x, y, size, color, facingRight, mouthOpen = 0) {
   const mouthX = size * 0.88;
   const mouthY = size * 0.08;
   if (mouthOpen > 0.05) {
-    // Animated open mouth — upper jaw + lower jaw
     const jawDrop = mouthOpen * size * 0.28;
     const halfW = size * 0.18;
     ctx.beginPath();
@@ -221,13 +282,11 @@ function drawFish(x, y, size, color, facingRight, mouthOpen = 0) {
     ctx.closePath();
     ctx.fillStyle = 'rgba(15, 0, 0, 0.88)';
     ctx.fill();
-    // Tongue hint
     ctx.beginPath();
     ctx.ellipse(mouthX - halfW * 0.3, mouthY + jawDrop * 0.6, halfW * 0.35, jawDrop * 0.22, 0, 0, Math.PI * 2);
     ctx.fillStyle = '#c62828';
     ctx.fill();
   } else {
-    // Closed mouth
     ctx.beginPath();
     ctx.arc(mouthX - size * 0.05, mouthY + size * 0.04, size * 0.13, 0.35, Math.PI - 0.35);
     ctx.strokeStyle = 'rgba(0,0,0,0.45)';
@@ -283,7 +342,6 @@ class Player {
       if (keys['ArrowUp']    || keys['w'] || keys['W']) dy -= 1;
       if (keys['ArrowDown']  || keys['s'] || keys['S']) dy += 1;
 
-      // Normalize diagonal so speed is consistent
       if (dx !== 0 && dy !== 0) { dx /= Math.SQRT2; dy /= Math.SQRT2; }
 
       this.x += dx * this.speed;
@@ -299,7 +357,6 @@ class Player {
   }
 
   draw() {
-    // mouthOpen eases from 1 → 0 over 20 frames
     const mouthOpen = this.mouthTimer > 0 ? Math.sin((this.mouthTimer / 20) * Math.PI) : 0;
     drawFish(this.x, this.y, this.size, this.color, this.facingRight, mouthOpen);
   }
@@ -318,7 +375,6 @@ const FISH_COLORS = [
 
 class EnemyFish {
   constructor(playerSize) {
-    // Size: mix of smaller and bigger than player
     const minSize = Math.max(8, playerSize * 0.28);
     const maxSize = Math.min(75, playerSize * 2.3);
     this.size = minSize + Math.random() * (maxSize - minSize);
@@ -326,22 +382,21 @@ class EnemyFish {
     this.active = true;
     this.mouthTimer = 0;
 
-    // Spawn from any of the 4 edges
     const edge = Math.floor(Math.random() * 4);
     const m = this.size * 1.5;
     const speed = 0.9 + Math.random() * 1.6;
     const drift = (Math.random() - 0.5) * 1.3;
 
-    if (edge === 0) {        // left → right
+    if (edge === 0) {
       this.x = -m; this.y = m + Math.random() * (canvas.height - m * 2);
       this.vx = speed; this.vy = drift;
-    } else if (edge === 1) { // right → left
+    } else if (edge === 1) {
       this.x = canvas.width + m; this.y = m + Math.random() * (canvas.height - m * 2);
       this.vx = -speed; this.vy = drift;
-    } else if (edge === 2) { // top → bottom
+    } else if (edge === 2) {
       this.x = m + Math.random() * (canvas.width - m * 2); this.y = -m;
       this.vx = drift; this.vy = speed;
-    } else {                 // bottom → top
+    } else {
       this.x = m + Math.random() * (canvas.width - m * 2); this.y = canvas.height + m;
       this.vx = drift; this.vy = -speed;
     }
@@ -351,11 +406,7 @@ class EnemyFish {
     this.x += this.vx;
     this.y += this.vy;
 
-    // Soft vertical/horizontal bounce off walls so fish don't escape too fast
     if ((this.y < this.size && this.vy < 0) || (this.y > canvas.height - this.size && this.vy > 0)) this.vy *= -1;
-    if ((this.x < this.size && this.vx < 0) || (this.x > canvas.width - this.size && this.vx > 0)) {
-      // Don't bounce horizontally — let them exit, just flip once
-    }
 
     if (this.mouthTimer > 0) this.mouthTimer--;
 
@@ -447,9 +498,15 @@ let spawnInterval = 90;
 // Combo
 let comboCount = 0;
 let comboTimer = 0;
-const COMBO_WINDOW = 150; // frames
+const COMBO_WINDOW = 150;
+
+// Player identity & frenzy
+let playerName = '';
+let eatCount = 0;
+let lastEatTime = 0;
 
 function startGame() {
+  for (const k in keys) keys[k] = false;  // clear any stuck keys from previous session
   startBackgroundMusic();
   score = 0;
   player = new Player();
@@ -460,10 +517,33 @@ function startGame() {
   spawnInterval = 90;
   comboCount = 0;
   comboTimer = 0;
+  eatCount = 0;
+  lastEatTime = 0;
   currentTip = Math.floor(Math.random() * TIPS.length);
   tipCycle = 0;
   gameState = 'playing';
+  document.getElementById('nameOverlay').classList.add('hidden');
+  document.getElementById('lbOverlay').classList.add('hidden');
 }
+
+// ─── Overlay Init ─────────────────────────────────────────────────────────────
+document.getElementById('diveBtn').addEventListener('click', () => {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) { document.getElementById('nameInput').focus(); return; }
+  playerName = name;
+  startGame();
+});
+
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('diveBtn').click();
+});
+
+document.getElementById('lbBtn').addEventListener('click', showLeaderboard);
+document.getElementById('lbCloseBtn').addEventListener('click', showNameOverlay);
+document.getElementById('switchBtn').addEventListener('click', showNameOverlay);
+
+// Focus input on load
+setTimeout(() => document.getElementById('nameInput').focus(), 100);
 
 // ─── Main Loop ────────────────────────────────────────────────────────────────
 function loop() {
@@ -484,21 +564,18 @@ function loop() {
 
   // ── Playing ──
   if (gameState === 'playing') {
-    // Ramp up spawning over time
-    spawnInterval = Math.max(32, 90 - Math.floor(frameCount / 300) * 5);
+    const frenzyLvl = Math.floor(eatCount / 5);
+    spawnInterval = Math.max(20, 90 - Math.floor(frameCount / 300) * 5 - frenzyLvl * 7);
     if (frameCount % spawnInterval === 0) enemies.push(new EnemyFish(player.size));
 
     player.update();
 
-    // Combo tick
     if (comboTimer > 0) comboTimer--;
     else comboCount = 0;
 
-    // Cycle tip every 10 eats
     tipCycle++;
     if (tipCycle % 600 === 0) currentTip = (currentTip + 1) % TIPS.length;
 
-    // Enemy update + collision
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
       e.update();
@@ -510,8 +587,21 @@ function loop() {
           // ── Eat ──
           comboCount++;
           comboTimer = COMBO_WINDOW;
+          eatCount++;
 
-          let pts = Math.ceil(e.size * 3);
+          // Speed bonus
+          const now = performance.now();
+          const gap = lastEatTime === 0 ? 99 : (now - lastEatTime) / 1000;
+          lastEatTime = now;
+
+          let speedMult = 1;
+          let speedLabel = null;
+          if      (gap < 0.4) { speedMult = 3;   speedLabel = '⚡ LIGHTNING! ×3'; }
+          else if (gap < 1.0) { speedMult = 2;   speedLabel = '🔥 FAST! ×2'; }
+          else if (gap < 2.0) { speedMult = 1.5; speedLabel = '×1.5'; }
+
+          let pts = Math.ceil(e.size * 2 * speedMult);
+
           if (comboCount >= 3) {
             const mult = Math.min(comboCount, 6);
             pts = Math.ceil(pts * (1 + (mult - 2) * 0.5));
@@ -521,6 +611,25 @@ function loop() {
             ));
             playComboSound(comboCount);
           }
+
+          if (speedLabel) {
+            floatTexts.push(new FloatText(e.x, e.y - e.size - 18, speedLabel, '#ff9800', 18));
+          }
+
+          // Frenzy
+          const frenzyLevel = Math.floor(eatCount / 5);
+          if (eatCount % 5 === 0) {
+            floatTexts.push(new FloatText(
+              canvas.width / 2, 120,
+              `🐟 FEEDING FRENZY ×${frenzyLevel}`, '#ff9800', 26
+            ));
+          }
+
+          const extraChance = [0, 0.25, 0.5, 0.7, 0.9][Math.min(frenzyLevel, 4)];
+          let extra = 0;
+          if (Math.random() < extraChance) extra++;
+          if (frenzyLevel >= 3 && Math.random() < 0.4) extra++;
+          for (let j = 0; j < extra; j++) enemies.push(new EnemyFish(player.size));
 
           score += pts;
           for (let p = 0; p < 8; p++) particles.push(new Particle(e.x, e.y, e.color));
@@ -535,7 +644,9 @@ function loop() {
           for (let p = 0; p < 16; p++) particles.push(new Particle(player.x, player.y, player.color));
           highScore = Math.max(highScore, score);
           playDeathSound();
+          if (playerName) saveLB(playerName, score, eatCount);
           gameState = 'dead';
+          setTimeout(() => { if (gameState === 'dead') showLeaderboard(); }, 1500);
         }
       }
     }
@@ -574,22 +685,54 @@ function loop() {
 
 // ─── HUD ──────────────────────────────────────────────────────────────────────
 function drawHUD() {
-  // Score panel
+  const hasName = playerName.length > 0;
+  const panelH = hasName ? 76 : 60;
+
+  // Score panel background
   ctx.fillStyle = 'rgba(0,0,0,0.38)';
-  ctx.fillRect(10, 10, 215, 60);
+  ctx.fillRect(10, 10, 230, panelH);
+
+  // Player name
+  if (hasName) {
+    ctx.fillStyle = '#4fc3f7';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`👤 ${playerName}`, 18, 26);
+  }
+
+  // Score
+  const scoreY = hasName ? 44 : 32;
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 18px Arial';
   ctx.textAlign = 'left';
-  ctx.fillText(`Score: ${score}`, 18, 32);
+  ctx.fillText(`Score: ${score}`, 18, scoreY);
+
+  // Fish count
+  ctx.fillStyle = '#ff9800';
+  ctx.font = 'bold 12px Arial';
+  ctx.fillText(`🐟 ×${eatCount}`, 156, scoreY);
 
   // Size bar
+  const barY = hasName ? 56 : 42;
   ctx.fillStyle = 'rgba(255,255,255,0.14)';
-  ctx.fillRect(18, 42, 162, 9);
+  ctx.fillRect(18, barY, 162, 9);
   ctx.fillStyle = '#4fc3f7';
-  ctx.fillRect(18, 42, (player.size / player.maxSize) * 162, 9);
+  ctx.fillRect(18, barY, (player.size / player.maxSize) * 162, 9);
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = '11px Arial';
-  ctx.fillText('SIZE', 187, 51);
+  ctx.fillText('SIZE', 187, barY + 9);
+
+  // Frenzy badge (below score panel)
+  const frenzyLevel = Math.floor(eatCount / 5);
+  if (frenzyLevel > 0) {
+    const fy = 10 + panelH + 4;
+    ctx.fillStyle = 'rgba(180,80,0,0.5)';
+    ctx.fillRect(10, fy, 160, 20);
+    ctx.fillStyle = '#ff9800';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`🐟 FRENZY ×${frenzyLevel}`, 90, fy + 14);
+  }
 
   // Combo badge
   if (comboCount >= 2) {
@@ -637,10 +780,6 @@ function drawStartScreen() {
   ctx.fillStyle = '#ffd740';
   ctx.font = 'bold 13px Arial';
   ctx.fillText(`PRO TIP: ${TIPS[0]}`, canvas.width / 2, canvas.height / 2 + 71);
-
-  ctx.fillStyle = '#4fc3f7';
-  ctx.font = 'bold 22px Arial';
-  ctx.fillText('Click or press SPACE / ENTER to start', canvas.width / 2, canvas.height / 2 + 118);
 }
 
 function drawDeadScreen() {
@@ -669,8 +808,8 @@ function drawDeadScreen() {
   ctx.fillText(`PRO TIP: ${TIPS[(currentTip + 1) % TIPS.length]}`, canvas.width / 2, canvas.height / 2 + 78);
 
   ctx.fillStyle = '#4fc3f7';
-  ctx.font = 'bold 22px Arial';
-  ctx.fillText('Click or press SPACE / ENTER to play again', canvas.width / 2, canvas.height / 2 + 115);
+  ctx.font = 'bold 20px Arial';
+  ctx.fillText('Click or SPACE to play again  •  ESC = Switch Player', canvas.width / 2, canvas.height / 2 + 115);
 }
 
 // ─── Go ───────────────────────────────────────────────────────────────────────

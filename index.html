@@ -7,6 +7,29 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Name Entry Overlay (visible on load) -->
+  <div id="nameOverlay" class="overlay">
+    <div class="panel">
+      <div class="fish-title">🐟 FISH GAME</div>
+      <p class="subtitle">Enter your name to dive in</p>
+      <input id="nameInput" type="text" maxlength="18" placeholder="Your name…" autocomplete="off" />
+      <button id="diveBtn" class="btn-primary">DIVE IN</button>
+      <button id="lbBtn" class="btn-ghost">🏆 Leaderboard</button>
+    </div>
+  </div>
+
+  <!-- Leaderboard Overlay (hidden by default) -->
+  <div id="lbOverlay" class="overlay hidden">
+    <div class="panel">
+      <div class="fish-title">🏆 LEADERBOARD</div>
+      <div id="lbList"></div>
+      <button id="lbCloseBtn" class="btn-ghost">← Back</button>
+    </div>
+  </div>
+
+  <!-- Floating Switch Player Button -->
+  <div id="switchBtn">👤 Switch Player</div>
+
   <canvas id="gameCanvas"></canvas>
   <script src="game.js"></script>
 </body>
