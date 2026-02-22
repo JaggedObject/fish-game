@@ -304,6 +304,7 @@ const TIPS = [
   'Your speed drops as you grow — use it wisely.',
   'Fish come from all directions — stay alert!',
   'A 6x COMBO triples your points per fish!',
+  'Keep eating — big fish starve faster!',
 ];
 let currentTip = 0;
 let tipCycle = 0;
@@ -505,6 +506,10 @@ let playerName = '';
 let eatCount = 0;
 let lastEatTime = 0;
 
+// Hunger
+const MAX_HUNGER = 420;
+let hunger = MAX_HUNGER;
+
 function startGame() {
   for (const k in keys) keys[k] = false;  // clear any stuck keys from previous session
   startBackgroundMusic();
@@ -519,6 +524,7 @@ function startGame() {
   comboTimer = 0;
   eatCount = 0;
   lastEatTime = 0;
+  hunger = MAX_HUNGER;
   currentTip = Math.floor(Math.random() * TIPS.length);
   tipCycle = 0;
   gameState = 'playing';
@@ -569,6 +575,25 @@ function loop() {
     if (frameCount % spawnInterval === 0) enemies.push(new EnemyFish(player.size));
 
     player.update();
+
+    // Hunger decay — bigger fish starve faster
+    const decayRate = 0.3 + (player.size - 22) / 85 * 0.4;
+    hunger -= decayRate;
+    if (hunger <= 0) {
+      hunger = 0;
+      player.size -= 0.08;
+      if (frameCount % 120 === 0) {
+        floatTexts.push(new FloatText(player.x, player.y - player.size - 30, 'STARVING!', '#ff1744', 22));
+      }
+      if (player.size < 12 && gameState === 'playing') {
+        for (let p = 0; p < 16; p++) particles.push(new Particle(player.x, player.y, player.color));
+        highScore = Math.max(highScore, score);
+        playDeathSound();
+        if (playerName) saveLB(playerName, score, eatCount);
+        gameState = 'dead';
+        setTimeout(() => { if (gameState === 'dead') showLeaderboard(); }, 1500);
+      }
+    }
 
     if (comboTimer > 0) comboTimer--;
     else comboCount = 0;
@@ -636,6 +661,7 @@ function loop() {
           floatTexts.push(new FloatText(e.x, e.y - e.size, `+${pts}`, '#ffffff'));
           player.eat(e.size);
           playEatSound(e.size);
+          hunger = MAX_HUNGER;
           enemies.splice(i, 1);
 
         } else if (e.size > player.size * 1.1) {
@@ -686,7 +712,7 @@ function loop() {
 // ─── HUD ──────────────────────────────────────────────────────────────────────
 function drawHUD() {
   const hasName = playerName.length > 0;
-  const panelH = hasName ? 76 : 60;
+  const panelH = hasName ? 90 : 74;
 
   // Score panel background
   ctx.fillStyle = 'rgba(0,0,0,0.38)';
@@ -721,6 +747,21 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = '11px Arial';
   ctx.fillText('SIZE', 187, barY + 9);
+
+  // Hunger bar
+  const hungerY = barY + 14;
+  const hungerRatio = hunger / MAX_HUNGER;
+  const isLow = hungerRatio < 0.25;
+  const hungerColor = isLow
+    ? `rgba(255,${Math.floor(50 + 50 * Math.abs(Math.sin(frameCount * 0.2)))},50,0.9)`
+    : '#ff9800';
+  ctx.fillStyle = 'rgba(255,255,255,0.14)';
+  ctx.fillRect(18, hungerY, 162, 9);
+  ctx.fillStyle = hungerColor;
+  ctx.fillRect(18, hungerY, hungerRatio * 162, 9);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '11px Arial';
+  ctx.fillText('FOOD', 187, hungerY + 9);
 
   // Frenzy badge (below score panel)
   const frenzyLevel = Math.floor(eatCount / 5);
