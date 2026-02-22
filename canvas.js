@@ -12,3 +12,7 @@ function resize() {
 }
 resize();
 window.addEventListener('resize', resize);
+
+// ─── World Dimensions ─────────────────────────────────────────────────────────
+const WORLD_W = 4500;
+const WORLD_H = 2800;

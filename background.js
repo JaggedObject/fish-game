@@ -18,7 +18,7 @@ function generateCoralLayer(count, yMin, yMax, brightness) {
       }));
     }
     return {
-      x: 30 + Math.random() * (canvas.width - 60),
+      x: 30 + Math.random() * (WORLD_W - 60),
       y: yMin + Math.random() * (yMax - yMin),
       type, size, brightness,
       hue: hues[Math.floor(Math.random() * hues.length)],
@@ -27,8 +27,8 @@ function generateCoralLayer(count, yMin, yMax, brightness) {
   });
 }
 
-const coralBack = generateCoralLayer(9, 460, 560, 0.6);
-const coralMid  = generateCoralLayer(6, 400, 520, 0.85);
+const coralBack = generateCoralLayer(45, WORLD_H - 100, WORLD_H,       0.6);
+const coralMid  = generateCoralLayer(30, WORLD_H - 160, WORLD_H - 40, 0.85);
 
 function drawCoralFan(c) {
   ctx.strokeStyle = `hsl(${c.hue},60%,${Math.round(22 * c.brightness)}%)`;
@@ -76,6 +76,8 @@ function drawCoralLayer(layer, drift = 0) {
   ctx.save();
   ctx.translate(drift, 0);
   layer.forEach(c => {
+    if (c.x + c.size + 20 < camera.x - drift || c.x - c.size - 20 > camera.x + canvas.width - drift) return;
+    if (c.y + c.size + 20 < camera.y          || c.y - c.size - 20 > camera.y + canvas.height)        return;
     ctx.save();
     if      (c.type === 'fan')  drawCoralFan(c);
     else if (c.type === 'tube') drawCoralTube(c);
@@ -110,9 +112,10 @@ function drawLightRays() {
 }
 
 // ─── Seaweed ──────────────────────────────────────────────────────────────────
-const seaweedPlants = Array.from({ length: 12 }, () => ({
-  x:          30 + Math.random() * (canvas.width - 60),
-  height:     40 + Math.random() * 70,
+const seaweedPlants = Array.from({ length: 60 }, () => ({
+  x:          30 + Math.random() * (WORLD_W - 60),
+  baseY:      WORLD_H,
+  height:     40 + Math.random() * 80,
   segments:   4 + Math.floor(Math.random() * 4),
   swayOffset: Math.random() * Math.PI * 2,
   swaySpeed:  0.025 + Math.random() * 0.02,
@@ -122,13 +125,15 @@ const seaweedPlants = Array.from({ length: 12 }, () => ({
 
 function drawSeaweed() {
   seaweedPlants.forEach(plant => {
+    if (plant.x + 40 < camera.x || plant.x - 40 > camera.x + canvas.width) return;
+    if (plant.baseY - plant.height > camera.y + canvas.height || plant.baseY < camera.y) return;
     const segH = plant.height / plant.segments;
     ctx.beginPath();
     ctx.strokeStyle = plant.color;
     ctx.lineWidth = plant.width;
     ctx.lineCap = 'round';
     let px = plant.x;
-    let py = canvas.height;
+    let py = plant.baseY;
     ctx.moveTo(px, py);
     for (let i = 0; i < plant.segments; i++) {
       const sway = Math.sin(frameCount * plant.swaySpeed + plant.swayOffset + i * 0.8) * (i + 1) * 5;

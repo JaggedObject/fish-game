@@ -237,7 +237,65 @@ Bottom bar:
 
 ---
 
-# Planned Enhancements
+# Feature Wave 2 — Large World + Depth Zones
+
+## Architecture Changes
+
+### World & Camera
+- **World size:** `WORLD_W = 4500`, `WORLD_H = 2800` (constants in `canvas.js`, loaded first)
+- **Camera:** `{ x, y }` global in `game.js` — top-left corner of viewport in world space
+- **Camera update** (each frame, playing state only):
+  ```
+  camera.x = clamp(player.x − canvas.width/2,  0, WORLD_W − canvas.width)
+  camera.y = clamp(player.y − canvas.height/2, 0, WORLD_H − canvas.height)
+  ```
+- **Rendering split:**
+  - Screen-space (no translate): background gradient, light rays, bubbles, HUD, poison flash, screen overlays
+  - World-space (inside `ctx.save/translate(-camera.x, -camera.y)/restore`): coral, seaweed, enemies, player, particles, float texts, shark
+- **Player start position:** world center `(WORLD_W/2, WORLD_H/2)` = `(2250, 1400)`
+- **Player boundary:** clamped to world bounds instead of canvas bounds
+- **Enemy spawn:** from camera viewport edges in world space; culled when >200px outside viewport
+
+### Background Elements (world-space, spread across full world)
+- **Coral back:** 45 clusters, `x: 0→WORLD_W`, `y: WORLD_H−100 → WORLD_H`
+- **Coral mid:** 30 clusters, `x: 0→WORLD_W`, `y: WORLD_H−160 → WORLD_H−40`
+- **Seaweed:** 60 plants, `x: 0→WORLD_W`, `baseY: WORLD_H` (ocean floor)
+- All draw functions apply **frustum culling** (skip if outside camera viewport)
+
+## Depth Zones (Option D)
+
+`depthRatio = player.y / WORLD_H` (0 = surface, 1 = abyss)
+
+| Zone | depthRatio | Background base color | Notes |
+|------|-----------|----------------------|-------|
+| Surface | 0–0.2 | `rgb(7,35,60)` | Light rays visible |
+| Mid | 0.2–0.6 | `rgb(7,20,37)` | Current look |
+| Deep | 0.6–0.85 | `rgb(4,10,22)` | Darker blue |
+| Abyss | 0.85–1.0 | `rgb(2,5,12)` | Near black |
+
+- Background color lerps smoothly between surface and abyss colors
+- Light rays only drawn when `depthRatio < 0.3`
+- **Depth meter** in HUD bottom-right: shows `⬇ Nm` (rounded to 10m)
+- Start screen uses `depthRatio = 0` (surface look)
+
+## File Change Summary
+| File | Change |
+|------|--------|
+| `canvas.js` | Add `WORLD_W`, `WORLD_H` constants |
+| `game.js` | Add camera global; restructure loop for translate; depth-aware background |
+| `entities.js` | Player boundary → world; EnemyFish spawn/cull → camera-relative |
+| `background.js` | Spread elements across world; add frustum culling |
+| `hud.js` | Add depth meter |
+
+## Deep Fish Variants (Wave 2 — Session 2, deferred)
+- Deep zone (depthRatio > 0.6): larger, slower, darker fish
+- Abyss (depthRatio > 0.85): bioluminescent fish (glow outline, no fill)
+
+---
+
+---
+
+# Planned Enhancements (Wave 1 — complete)
 
 Five features planned together. Implement in this order (each is self-contained):
 

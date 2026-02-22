@@ -19,16 +19,16 @@ canvas.addEventListener('touchstart', e => {
   if (gameState !== 'playing') return;
   const r = canvas.getBoundingClientRect();
   touchTarget = {
-    x: (e.touches[0].clientX - r.left) * (canvas.width / r.width),
-    y: (e.touches[0].clientY - r.top) * (canvas.height / r.height),
+    x: (e.touches[0].clientX - r.left) * (canvas.width / r.width)  + camera.x,
+    y: (e.touches[0].clientY - r.top)  * (canvas.height / r.height) + camera.y,
   };
 }, { passive: false });
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
   const r = canvas.getBoundingClientRect();
   touchTarget = {
-    x: (e.touches[0].clientX - r.left) * (canvas.width / r.width),
-    y: (e.touches[0].clientY - r.top) * (canvas.height / r.height),
+    x: (e.touches[0].clientX - r.left) * (canvas.width / r.width)  + camera.x,
+    y: (e.touches[0].clientY - r.top)  * (canvas.height / r.height) + camera.y,
   };
 }, { passive: false });
 canvas.addEventListener('touchend', () => { touchTarget = null; });
@@ -65,6 +65,9 @@ let sharkRespawnTimer = 0;
 // Toxic
 let poisonFlash = 0;
 
+// Camera (world-space top-left of viewport)
+let camera = { x: WORLD_W / 2 - canvas.width / 2, y: 0 };
+
 // ─── Start Game ───────────────────────────────────────────────────────────────
 function startGame() {
   for (const k in keys) keys[k] = false;
@@ -84,6 +87,8 @@ function startGame() {
   shark = null;
   sharkRespawnTimer = 0;
   poisonFlash = 0;
+  camera.x = player.x - canvas.width  / 2;
+  camera.y = player.y - canvas.height / 2;
   currentTip = Math.floor(Math.random() * TIPS.length);
   tipCycle = 0;
   gameState = 'playing';
@@ -114,21 +119,40 @@ function loop() {
   requestAnimationFrame(loop);
   frameCount++;
 
-  // Background
-  ctx.fillStyle = '#071425';
+  // ── Update camera (playing only) ──
+  if (gameState === 'playing' && player) {
+    camera.x = Math.max(0, Math.min(WORLD_W - canvas.width,  player.x - canvas.width  / 2));
+    camera.y = Math.max(0, Math.min(WORLD_H - canvas.height, player.y - canvas.height / 2));
+  }
+
+  // ── Depth-aware background (screen space) ──
+  const depthRatio = (player && gameState === 'playing')
+    ? Math.max(0, Math.min(1, player.y / WORLD_H))
+    : 0;
+  const bgR = Math.round(7  + (2  - 7)  * depthRatio);
+  const bgG = Math.round(35 + (5  - 35) * depthRatio);
+  const bgB = Math.round(60 + (12 - 60) * depthRatio);
+  ctx.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const gradA1 = (0.12 + (0.02 - 0.12) * depthRatio).toFixed(3);
+  const gradA2 = (0.26 + (0.05 - 0.26) * depthRatio).toFixed(3);
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  grad.addColorStop(0, 'rgba(30,100,160,0.12)');
-  grad.addColorStop(1, 'rgba(5,20,50,0.26)');
+  grad.addColorStop(0, `rgba(30,100,160,${gradA1})`);
+  grad.addColorStop(1, `rgba(5,20,50,${gradA2})`);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  drawLightRays();
+  if (depthRatio < 0.3) drawLightRays();
+  updateBubbles();
+  drawBubbles();
+
+  // ── World space ──
+  ctx.save();
+  ctx.translate(-camera.x, -camera.y);
+
   drawCoralLayer(coralBack);
   drawCoralLayer(coralMid, Math.sin(frameCount * 0.0008) * 3);
   drawSeaweed();
-  updateBubbles();
-  drawBubbles();
 
   // ── Playing ──
   if (gameState === 'playing') {
@@ -142,7 +166,7 @@ function loop() {
         sharkRespawnTimer--;
       } else if (frenzyLvl >= 2 || frameCount > 3600) {
         shark = new Shark();
-        floatTexts.push(new FloatText(canvas.width / 2, 80, '🦈 SHARK!', '#ff5252', 28));
+        floatTexts.push(new FloatText(player.x, player.y - 80, '🦈 SHARK!', '#ff5252', 28));
       }
     }
 
@@ -186,7 +210,6 @@ function loop() {
           comboTimer = COMBO_WINDOW;
           eatCount++;
 
-          // Speed bonus
           const now = performance.now();
           const gap = lastEatTime === 0 ? 99 : (now - lastEatTime) / 1000;
           lastEatTime = now;
@@ -202,10 +225,7 @@ function loop() {
           if (comboCount >= 3) {
             const mult = Math.min(comboCount, 6);
             pts = Math.ceil(pts * (1 + (mult - 2) * 0.5));
-            floatTexts.push(new FloatText(
-              player.x, player.y - player.size - 22,
-              `${mult}x COMBO!`, '#ffd740', 22
-            ));
+            floatTexts.push(new FloatText(player.x, player.y - player.size - 22, `${mult}x COMBO!`, '#ffd740', 22));
             playComboSound(comboCount);
           }
 
@@ -213,13 +233,9 @@ function loop() {
             floatTexts.push(new FloatText(e.x, e.y - e.size - 18, speedLabel, '#ff9800', 18));
           }
 
-          // Frenzy
           const frenzyLevel = Math.floor(eatCount / 5);
           if (eatCount % 5 === 0) {
-            floatTexts.push(new FloatText(
-              canvas.width / 2, 120,
-              `🐟 FEEDING FRENZY ×${frenzyLevel}`, '#ff9800', 26
-            ));
+            floatTexts.push(new FloatText(player.x, player.y - 60, `🐟 FEEDING FRENZY ×${frenzyLevel}`, '#ff9800', 26));
           }
 
           const extraChance = [0, 0.25, 0.5, 0.7, 0.9][Math.min(frenzyLevel, 4)];
@@ -270,13 +286,6 @@ function loop() {
       if (floatTexts[i].life <= 0) floatTexts.splice(i, 1);
     }
 
-    // Poison flash overlay
-    if (poisonFlash > 0) {
-      ctx.fillStyle = `rgba(171,71,188,${(poisonFlash / 18 * 0.28).toFixed(3)})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      poisonFlash--;
-    }
-
     // Shark update + collision
     if (shark) {
       shark.update();
@@ -297,14 +306,11 @@ function loop() {
       }
     }
 
-    drawHUD();
-
   // ── Start screen ──
   } else if (gameState === 'start') {
     if (frameCount % 110 === 0) enemies.push(new EnemyFish(22));
     enemies = enemies.filter(e => e.active);
     enemies.forEach(e => { e.update(); e.draw(); });
-    drawStartScreen();
 
   // ── Dead screen ──
   } else if (gameState === 'dead') {
@@ -313,6 +319,21 @@ function loop() {
       particles[i].update(); particles[i].draw();
       if (particles[i].alpha <= 0) particles.splice(i, 1);
     }
+  }
+
+  ctx.restore(); // end world space
+
+  // ── Screen-space overlays ──
+  if (gameState === 'playing') {
+    if (poisonFlash > 0) {
+      ctx.fillStyle = `rgba(171,71,188,${(poisonFlash / 18 * 0.28).toFixed(3)})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      poisonFlash--;
+    }
+    drawHUD();
+  } else if (gameState === 'start') {
+    drawStartScreen();
+  } else if (gameState === 'dead') {
     drawDeadScreen();
   }
 }

@@ -125,8 +125,8 @@ class Player {
       else if (dx < 0) this.facingRight = false;
     }
 
-    this.x = Math.max(this.size, Math.min(canvas.width  - this.size, this.x));
-    this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
+    this.x = Math.max(this.size, Math.min(WORLD_W - this.size, this.x));
+    this.y = Math.max(this.size, Math.min(WORLD_H - this.size, this.y));
 
     if (this.mouthTimer > 0) this.mouthTimer--;
   }
@@ -164,32 +164,36 @@ class EnemyFish {
     const m = this.size * 1.5;
     const speed = 0.9 + Math.random() * 1.6;
     const drift = (Math.random() - 0.5) * 1.3;
+    const vw = canvas.width, vh = canvas.height;
 
     if (edge === 0) {
-      this.x = -m; this.y = m + Math.random() * (canvas.height - m * 2);
+      this.x = camera.x - m;           this.y = camera.y + m + Math.random() * (vh - m * 2);
       this.vx = speed; this.vy = drift;
     } else if (edge === 1) {
-      this.x = canvas.width + m; this.y = m + Math.random() * (canvas.height - m * 2);
+      this.x = camera.x + vw + m;      this.y = camera.y + m + Math.random() * (vh - m * 2);
       this.vx = -speed; this.vy = drift;
     } else if (edge === 2) {
-      this.x = m + Math.random() * (canvas.width - m * 2); this.y = -m;
+      this.x = camera.x + m + Math.random() * (vw - m * 2); this.y = camera.y - m;
       this.vx = drift; this.vy = speed;
     } else {
-      this.x = m + Math.random() * (canvas.width - m * 2); this.y = canvas.height + m;
+      this.x = camera.x + m + Math.random() * (vw - m * 2); this.y = camera.y + vh + m;
       this.vx = drift; this.vy = -speed;
     }
+    this.x = Math.max(m, Math.min(WORLD_W - m, this.x));
+    this.y = Math.max(m, Math.min(WORLD_H - m, this.y));
   }
 
   update() {
     this.x += this.vx;
     this.y += this.vy;
 
-    if ((this.y < this.size && this.vy < 0) || (this.y > canvas.height - this.size && this.vy > 0)) this.vy *= -1;
+    if ((this.y < this.size && this.vy < 0) || (this.y > WORLD_H - this.size && this.vy > 0)) this.vy *= -1;
 
     if (this.mouthTimer > 0) this.mouthTimer--;
 
-    const m = 120;
-    if (this.x > canvas.width + m || this.x < -m || this.y > canvas.height + m || this.y < -m) {
+    const m = 200;
+    if (this.x > camera.x + canvas.width  + m || this.x < camera.x - m ||
+        this.y > camera.y + canvas.height + m || this.y < camera.y - m) {
       this.active = false;
     }
   }

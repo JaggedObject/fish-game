@@ -99,6 +99,13 @@ function drawHUD() {
   ctx.fillStyle = '#e0f7fa';
   ctx.font = '12px Arial';
   ctx.fillText(TIPS[currentTip], 82, canvas.height - 9);
+
+  // Depth meter (right side of tip bar)
+  const depthM = Math.round(player.y / WORLD_H * 1000 / 10) * 10;
+  ctx.fillStyle = '#4fc3f7';
+  ctx.font = 'bold 12px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText(`⬇ ${depthM}m`, canvas.width - 10, canvas.height - 9);
 }
 
 // ─── Screens ──────────────────────────────────────────────────────────────────
