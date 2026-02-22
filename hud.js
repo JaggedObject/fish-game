@@ -6,6 +6,7 @@ const TIPS = [
   'Fish come from all directions — stay alert!',
   'A 6x COMBO triples your points per fish!',
   'Keep eating — big fish starve faster!',
+  'A shark is hunting you — you cannot eat it, only outrun it!',
 ];
 let currentTip = 0;
 let tipCycle = 0;

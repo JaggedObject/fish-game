@@ -58,6 +58,10 @@ let lastEatTime = 0;
 const MAX_HUNGER = 420;
 let hunger = MAX_HUNGER;
 
+// Shark
+let shark = null;
+let sharkRespawnTimer = 0;
+
 // ─── Start Game ───────────────────────────────────────────────────────────────
 function startGame() {
   for (const k in keys) keys[k] = false;
@@ -74,6 +78,8 @@ function startGame() {
   eatCount = 0;
   lastEatTime = 0;
   hunger = MAX_HUNGER;
+  shark = null;
+  sharkRespawnTimer = 0;
   currentTip = Math.floor(Math.random() * TIPS.length);
   tipCycle = 0;
   gameState = 'playing';
@@ -123,6 +129,16 @@ function loop() {
     const frenzyLvl = Math.floor(eatCount / 5);
     spawnInterval = Math.max(20, 90 - Math.floor(frameCount / 300) * 5 - frenzyLvl * 7);
     if (frameCount % spawnInterval === 0) enemies.push(new EnemyFish(player.size));
+
+    // Shark spawn
+    if (!shark) {
+      if (sharkRespawnTimer > 0) {
+        sharkRespawnTimer--;
+      } else if (frenzyLvl >= 2 || frameCount > 3600) {
+        shark = new Shark();
+        floatTexts.push(new FloatText(canvas.width / 2, 80, '🦈 SHARK!', '#ff5252', 28));
+      }
+    }
 
     player.update();
 
@@ -237,6 +253,26 @@ function loop() {
     for (let i = floatTexts.length - 1; i >= 0; i--) {
       floatTexts[i].update(); floatTexts[i].draw();
       if (floatTexts[i].life <= 0) floatTexts.splice(i, 1);
+    }
+
+    // Shark update + collision
+    if (shark) {
+      shark.update();
+      if (!shark.active) {
+        shark = null;
+        sharkRespawnTimer = 900;
+      } else {
+        shark.draw();
+        const sharkDist = Math.hypot(shark.x - player.x, shark.y - player.y);
+        if (sharkDist < shark.size * 0.6 + player.size * 0.75 && gameState === 'playing') {
+          for (let p = 0; p < 16; p++) particles.push(new Particle(player.x, player.y, player.color));
+          highScore = Math.max(highScore, score);
+          playDeathSound();
+          if (playerName) saveLB(playerName, score, eatCount);
+          gameState = 'dead';
+          setTimeout(() => { if (gameState === 'dead') showLeaderboard(); }, 1500);
+        }
+      }
     }
 
     drawHUD();

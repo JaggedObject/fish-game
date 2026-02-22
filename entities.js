@@ -198,6 +198,46 @@ class EnemyFish {
   }
 }
 
+// ─── Shark ────────────────────────────────────────────────────────────────────
+class Shark {
+  constructor() {
+    this.size = 96;
+    this.color = '#455a64';
+    this.x = -130;
+    this.y = Math.random() * canvas.height;
+    this.facingRight = true;
+    this.active = true;
+  }
+
+  get speed() {
+    return 1.4 + Math.floor(eatCount / 5) * 0.15;
+  }
+
+  update() {
+    if (!player) return;
+    const dx = player.x - this.x;
+    const dy = player.y - this.y;
+    const dist = Math.hypot(dx, dy);
+    this.x += (dx / dist) * this.speed;
+    this.y += (dy / dist) * this.speed;
+    this.facingRight = dx >= 0;
+
+    const m = 200;
+    if (this.x < -m || this.x > canvas.width + m ||
+        this.y < -m || this.y > canvas.height + m) {
+      this.active = false;
+    }
+  }
+
+  draw() {
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,50,50,0.5)';
+    ctx.shadowBlur = 18;
+    drawFish(this.x, this.y, this.size, this.color, this.facingRight, 0);
+    ctx.restore();
+  }
+}
+
 // ─── Particles ────────────────────────────────────────────────────────────────
 class Particle {
   constructor(x, y, color) {
