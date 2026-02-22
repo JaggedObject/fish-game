@@ -1,11 +1,19 @@
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
-const LB_KEY = 'fishgame_lb';
+const LB_KEY = 'fishgame_lb_v2';
 
 function loadLB() { return JSON.parse(localStorage.getItem(LB_KEY) || '[]'); }
 
 function saveLB(name, score, fishEaten) {
   const lb = loadLB();
-  lb.push({ name, score, fish: fishEaten, date: new Date().toLocaleDateString() });
+  const idx = lb.findIndex(e => e.name.toLowerCase() === name.toLowerCase());
+  if (idx !== -1) {
+    // Name already exists — only update if new score is better
+    if (score > lb[idx].score) {
+      lb[idx] = { name, score, fish: fishEaten, date: new Date().toLocaleDateString() };
+    }
+  } else {
+    lb.push({ name, score, fish: fishEaten, date: new Date().toLocaleDateString() });
+  }
   lb.sort((a, b) => b.score - a.score);
   lb.splice(10);
   localStorage.setItem(LB_KEY, JSON.stringify(lb));
