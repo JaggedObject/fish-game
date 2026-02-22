@@ -232,3 +232,332 @@ Bottom bar:
 - `highScore` resets on page reload (not persisted)
 - Leaderboard is device-local (localStorage only)
 - Start screen fish spawn every 110 frames with fixed size 22 (not scaled to anything)
+
+---
+
+---
+
+# Planned Enhancements
+
+Five features planned together. Implement in this order (each is self-contained):
+
+1. Hunger / Shrink Mechanic
+2. Seaweed + Light Rays
+3. Shark Apex Predator
+4. Parallax Coral Background
+5. Toxic Fish
+
+---
+
+## Feature 1 — Hunger / Shrink Mechanic
+
+**Goal:** Remove the invincibility of large fish by making them need to keep eating.
+
+### New globals
+```js
+let hunger    = 420;   // current hunger (frames of food remaining)
+const MAX_HUNGER = 420; // ~7 s at 60 fps
+```
+
+### Hunger decay (each frame while playing)
+```
+decayRate = 0.3 + (player.size - 22) / 85 * 0.4
+hunger -= decayRate
+```
+Bigger fish decay faster (range: 0.3 → 0.7 per frame). At max size, food runs out in ~4 s.
+
+### Starvation shrink
+When `hunger <= 0`:
+- `player.size -= 0.08` per frame
+- If `player.size < 12` → trigger death (same flow as being eaten)
+
+### On eat
+- `hunger = MAX_HUNGER` (fully restored)
+- `startGame()` resets `hunger = MAX_HUNGER`
+
+### HUD changes
+- Add a **hunger bar** below the size bar in the top-left panel (orange fill)
+- When `hunger < MAX_HUNGER * 0.25`: bar turns red and pulses (opacity flicker using `sin(frameCount * 0.2)`)
+- Float text "STARVING!" in red when hunger first hits 0
+
+### New pro tip to add
+- `'Keep eating — big fish starve faster!'`
+
+---
+
+## Feature 2 — Seaweed + Light Rays
+
+**Goal:** Enrich the visual atmosphere with animated underwater elements. No gameplay impact.
+
+### Rendering order (revised)
+1. Background gradient (existing)
+2. **Light rays** ← new
+3. **Coral / seaweed** ← new (Feature 4)
+4. Bubbles (existing)
+5. Fish, particles, float texts (existing)
+6. HUD (existing)
+
+### Light rays
+Generate once (or at start of each game):
+```js
+const lightRays = Array.from({ length: 5 }, (_, i) => ({
+  x:     100 + i * 170 + (Math.random() - 0.5) * 80,
+  width: 40 + Math.random() * 60,
+  phase: Math.random() * Math.PI * 2,   // for opacity animation
+}));
+```
+
+Draw each frame (before bubbles):
+- Fill a trapezoid from `(x - width/2, 0)` to `(x + width/2, 0)` narrowing to a point at `y = canvas.height`
+- Use a vertical `createLinearGradient`: `rgba(255,255,255,0.06)` → `rgba(255,255,255,0)`
+- Opacity multiplied by `0.7 + 0.3 * sin(frameCount * 0.008 + phase)`
+
+### Seaweed
+Generate 12 plants along the bottom at game start:
+```js
+const seaweedPlants = Array.from({ length: 12 }, () => ({
+  x:          30 + Math.random() * (canvas.width - 60),
+  height:     40 + Math.random() * 70,      // total plant height
+  segments:   4 + Math.floor(Math.random() * 4),
+  swayOffset: Math.random() * Math.PI * 2,
+  swaySpeed:  0.025 + Math.random() * 0.02,
+  color:      `hsl(${130 + Math.random() * 30}, 55%, ${18 + Math.random() * 12}%)`,
+}));
+```
+
+Draw each plant as a chain of quadratic bezier curves bottom-up:
+- Each segment control point offset: `sin(frameCount * swaySpeed + swayOffset) * segmentIdx * 6`
+- Stroke only (lineWidth 3–5, color from plant), no fill
+- `drawSeaweed()` called in the game loop after light rays
+
+---
+
+## Feature 3 — Shark Apex Predator
+
+**Goal:** A persistent threat that cannot be eaten, forcing the player to keep moving.
+
+### New global
+```js
+let shark = null;          // Shark instance or null
+let sharkRespawnTimer = 0; // counts down frames until next spawn attempt
+```
+
+### Shark class
+```js
+class Shark {
+  constructor() {
+    this.size  = 96;
+    this.color = '#455a64';  // dark blue-grey
+    this.x     = -120;
+    this.y     = Math.random() * canvas.height;
+    this.facingRight = true;
+    this.active = true;
+  }
+
+  get speed() {
+    const frenzyLvl = Math.floor(eatCount / 5);
+    return 1.4 + frenzyLvl * 0.15;  // 1.4 → 2.0 across frenzy levels
+  }
+
+  update() {
+    if (!player) return;
+    const dx = player.x - this.x;
+    const dy = player.y - this.y;
+    const dist = Math.hypot(dx, dy);
+    this.x += (dx / dist) * this.speed;
+    this.y += (dy / dist) * this.speed;
+    this.facingRight = dx >= 0;
+
+    // Deactivate if far off-screen (player led it out of bounds)
+    const m = 200;
+    if (this.x < -m || this.x > canvas.width + m ||
+        this.y < -m || this.y > canvas.height + m) {
+      this.active = false;
+      sharkRespawnTimer = 900; // 15 s before re-spawn attempt
+    }
+  }
+
+  draw() {
+    // Reuse drawFish with a red warning glow halo before drawing
+    ctx.save();
+    ctx.shadowColor = 'rgba(255, 50, 50, 0.5)';
+    ctx.shadowBlur  = 18;
+    drawFish(this.x, this.y, this.size, this.color, this.facingRight, 0);
+    ctx.restore();
+  }
+}
+```
+
+### Spawn logic (inside game loop, `playing` state)
+```js
+if (!shark) {
+  if (sharkRespawnTimer > 0) {
+    sharkRespawnTimer--;
+  } else if (Math.floor(eatCount / 5) >= 2 || frameCount > 3600) {
+    shark = new Shark();
+    floatTexts.push(new FloatText(canvas.width/2, 80, '🦈 SHARK!', '#ff5252', 28));
+  }
+}
+if (shark) {
+  shark.update();
+  if (!shark.active) { shark = null; }
+  else {
+    shark.draw();
+    // Collision: any overlap = instant death
+    const dist = Math.hypot(shark.x - player.x, shark.y - player.y);
+    if (dist < shark.size * 0.6 + player.size * 0.75) {
+      // trigger death (same as being eaten)
+    }
+  }
+}
+```
+
+### Reset on `startGame()`
+```js
+shark = null;
+sharkRespawnTimer = 0;
+```
+
+### New pro tip to add
+- `'A shark is hunting you — you cannot eat it, only outrun it!'`
+
+---
+
+## Feature 4 — Parallax Coral Background
+
+**Goal:** Make the ocean feel alive and textured with static-but-rich background scenery.
+
+### Two coral layers
+Generate once at game start (or module-level as constants):
+
+**Back layer** — 9 clusters, bottom 18% of canvas (`y: 460–560`), small and dark:
+```js
+const coralBack = generateCoralLayer(9, 460, 560, 0.6);
+```
+
+**Mid layer** — 6 clusters, bottom 28% (`y: 400–560`), medium and slightly lighter:
+```js
+const coralMid = generateCoralLayer(6, 400, 520, 0.85);
+```
+
+### `generateCoralLayer(count, yMin, yMax, brightness)`
+Returns an array of cluster objects:
+```js
+{ x, y, type, size, hue, brightness }
+```
+- `type`: `'fan'` | `'tube'` | `'brain'`
+- `hue`: random from `[0, 30, 270, 300]` (red-orange, purple, pink)
+- `size`: back 14–28, mid 22–42
+
+### Drawing coral types (in `drawCoral(cluster)`)
+
+**Fan coral:**
+- 7 arcs radiating from base point, each a `quadraticCurveTo` curving left/right
+- Stroke only, lineWidth 2, color `hsl(hue, 60%, 22% * brightness)`
+
+**Tube coral:**
+- 3–5 `roundRect` (or arc-capped rectangles) of varying heights grouped at `x`
+- Fill `hsl(hue, 50%, 18% * brightness)`
+
+**Brain coral:**
+- Filled circle base
+- 4–6 short wavy strokes across the surface using `sin()`
+
+### Draw order in loop
+```
+drawCoralLayer(coralBack);   // before mid layer
+drawCoralLayer(coralMid);
+```
+Both drawn after light rays, before seaweed, before bubbles.
+
+### Gentle ambient drift (optional)
+Apply `ctx.translate(sin(frameCount * 0.0008) * 3, 0)` to mid layer only — barely perceptible slow sway.
+
+---
+
+## Feature 5 — Toxic Fish
+
+**Goal:** Add a risk-reward element. Toxic fish look tempting but punish careless eating.
+
+### EnemyFish changes
+In `EnemyFish` constructor, add:
+```js
+this.toxic = Math.random() < 0.15;   // 15% spawn chance
+if (this.toxic) this.color = '#ce93d8';  // override to light purple
+```
+
+### Visual distinction
+In `EnemyFish.draw()`, before calling `drawFish()`:
+```js
+if (this.toxic) {
+  ctx.save();
+  ctx.shadowColor = '#ab47bc';
+  ctx.shadowBlur  = 14 + Math.sin(frameCount * 0.12) * 6;  // pulsing glow
+  // drawFish call happens inside; restore after
+}
+```
+After `drawFish`, draw a small skull overlay:
+```js
+ctx.font = `bold ${this.size * 0.55}px Arial`;
+ctx.textAlign = 'center';
+ctx.fillText('☠', this.x, this.y + this.size * 0.18);
+```
+
+### On eat (in collision block)
+Replace growth/score with:
+```js
+if (e.toxic) {
+  player.size = Math.max(12, player.size - player.size * 0.18); // lose 18%
+  score += Math.ceil(e.size * 0.5);   // reduced points
+  poisonFlash = 18;                    // new global, frames of purple screen tint
+  floatTexts.push(new FloatText(e.x, e.y - e.size, '☠ TOXIC!', '#ce93d8', 20));
+  playToxicSound();
+} else {
+  // existing eat logic
+}
+```
+
+### `poisonFlash` overlay
+New global `let poisonFlash = 0;`
+
+In game loop, after drawing everything but before HUD:
+```js
+if (poisonFlash > 0) {
+  ctx.fillStyle = `rgba(171, 71, 188, ${poisonFlash / 18 * 0.28})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  poisonFlash--;
+}
+```
+
+### `playToxicSound()`
+```js
+function playToxicSound() {
+  const ac = getAudio();
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(400, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(80, ac.currentTime + 0.4);
+  gain.gain.setValueAtTime(0.3, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.start();
+  osc.stop(ac.currentTime + 0.45);
+}
+```
+
+### New pro tip to add
+- `'Purple glowing fish are TOXIC — they shrink you!'`
+
+---
+
+## Implementation Checklist
+
+- [ ] **F1** Hunger globals + decay + starvation death + HUD bar
+- [ ] **F2** Light rays array + `drawLightRays()` + seaweed array + `drawSeaweed()`
+- [ ] **F3** `Shark` class + spawn logic + collision + reset in `startGame()`
+- [ ] **F4** `generateCoralLayer()` + coral draw functions + layer draw calls
+- [ ] **F5** `toxic` flag on EnemyFish + glow draw + skull overlay + eat handler + `poisonFlash` + `playToxicSound()`
+- [ ] Add 3 new pro tips (hunger, shark, toxic)
+- [ ] Commit after all 5 features pass manual testing
