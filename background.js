@@ -171,3 +171,112 @@ function drawBubbles() {
   });
   ctx.restore();
 }
+
+// ─── Fishing Hooks ────────────────────────────────────────────────────────────
+const fishingHooks = Array.from({ length: 14 }, () => ({
+  x:       80 + Math.random() * (WORLD_W - 160),
+  lineTop: 0,
+  hookY:   120 + Math.random() * 700,
+  size:    10  + Math.random() * 8,
+}));
+
+function drawFishingHooks() {
+  fishingHooks.forEach(h => {
+    if (h.x    + 40 < camera.x               || h.x    - 40 > camera.x + canvas.width)  return;
+    if (h.hookY     < camera.y               || h.lineTop   > camera.y + canvas.height)  return;
+    ctx.save();
+
+    // Line from visible top to hook shank
+    const visTop = Math.max(h.lineTop, camera.y);
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = 'rgba(210,200,170,0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(h.x, visTop);
+    ctx.lineTo(h.x, h.hookY - h.size * 1.4);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Hook metal (steel grey)
+    ctx.strokeStyle = '#9e9eb0';
+    ctx.lineWidth   = Math.max(2, h.size * 0.2);
+    ctx.lineCap     = 'round';
+
+    // Eye loop at top of hook
+    ctx.beginPath();
+    ctx.arc(h.x, h.hookY - h.size * 1.4, h.size * 0.22, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Shank + J-curve
+    ctx.beginPath();
+    ctx.moveTo(h.x, h.hookY - h.size * 1.15);
+    ctx.lineTo(h.x, h.hookY);
+    ctx.quadraticCurveTo(h.x, h.hookY + h.size * 0.85, h.x - h.size * 0.75, h.hookY + h.size * 0.55);
+    ctx.stroke();
+
+    // Barb
+    ctx.beginPath();
+    ctx.moveTo(h.x - h.size * 0.55, h.hookY + h.size * 0.35);
+    ctx.lineTo(h.x - h.size * 0.12, h.hookY + h.size * 0.55);
+    ctx.stroke();
+
+    ctx.restore();
+  });
+}
+
+// ─── Ship Anchors ─────────────────────────────────────────────────────────────
+const shipAnchors = Array.from({ length: 10 }, () => ({
+  x:    100 + Math.random() * (WORLD_W - 200),
+  y:    WORLD_H - 22 - Math.random() * 38,
+  size: 24  + Math.random() * 14,
+}));
+
+function drawAnchors() {
+  shipAnchors.forEach(a => {
+    if (a.x + a.size * 2 < camera.x || a.x - a.size * 2 > camera.x + canvas.width)  return;
+    if (a.y - a.size * 2 > camera.y + canvas.height || a.y + a.size < camera.y)      return;
+    ctx.save();
+    const x = a.x, y = a.y, s = a.size;
+    ctx.strokeStyle = '#546e7a';
+    ctx.fillStyle   = '#37474f';
+    ctx.lineWidth   = Math.max(2, s * 0.13);
+    ctx.lineCap     = 'round';
+
+    // Ring at top
+    ctx.beginPath();
+    ctx.arc(x, y - s * 0.85, s * 0.18, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Shaft
+    ctx.beginPath();
+    ctx.moveTo(x, y - s * 0.67);
+    ctx.lineTo(x, y + s * 0.45);
+    ctx.stroke();
+
+    // Crossbar
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.52, y - s * 0.36);
+    ctx.lineTo(x + s * 0.52, y - s * 0.36);
+    ctx.stroke();
+
+    // Left arm
+    ctx.beginPath();
+    ctx.moveTo(x, y + s * 0.45);
+    ctx.quadraticCurveTo(x - s * 0.65, y + s * 0.5, x - s * 0.65, y + s * 0.1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x - s * 0.65, y + s * 0.1, s * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Right arm
+    ctx.beginPath();
+    ctx.moveTo(x, y + s * 0.45);
+    ctx.quadraticCurveTo(x + s * 0.65, y + s * 0.5, x + s * 0.65, y + s * 0.1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + s * 0.65, y + s * 0.1, s * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  });
+}

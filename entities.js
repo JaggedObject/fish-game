@@ -1,5 +1,5 @@
 // ─── Draw Fish ────────────────────────────────────────────────────────────────
-function drawFish(x, y, size, color, facingRight, mouthOpen = 0) {
+function drawFish(x, y, size, color, facingRight, mouthOpen = 0, angryEyes = false) {
   ctx.save();
   ctx.translate(x, y);
   if (!facingRight) ctx.scale(-1, 1);
@@ -46,7 +46,7 @@ function drawFish(x, y, size, color, facingRight, mouthOpen = 0) {
   // Pupil
   ctx.beginPath();
   ctx.arc(size * 0.49, -size * 0.1, size * 0.09, 0, Math.PI * 2);
-  ctx.fillStyle = '#111';
+  ctx.fillStyle = angryEyes ? '#cc0000' : '#111';
   ctx.fill();
 
   // Eye shine
@@ -54,6 +54,17 @@ function drawFish(x, y, size, color, facingRight, mouthOpen = 0) {
   ctx.arc(size * 0.44, -size * 0.15, size * 0.04, 0, Math.PI * 2);
   ctx.fillStyle = '#fff';
   ctx.fill();
+
+  // Angry eyebrow
+  if (angryEyes) {
+    ctx.beginPath();
+    ctx.moveTo(size * 0.28, -size * 0.33);
+    ctx.lineTo(size * 0.63, -size * 0.22);
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = Math.max(1.5, size * 0.07);
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
 
   // Mouth
   const mouthX = size * 0.88;
@@ -253,7 +264,7 @@ class Shark {
     ctx.save();
     ctx.shadowColor = 'rgba(255,50,50,0.5)';
     ctx.shadowBlur = 18;
-    drawFish(this.x, this.y, this.size, this.color, this.facingRight, 0);
+    drawFish(this.x, this.y, this.size, this.color, this.facingRight, 0, true);
     ctx.restore();
   }
 }

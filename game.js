@@ -68,6 +68,16 @@ let poisonFlash = 0;
 // Camera (world-space top-left of viewport)
 let camera = { x: WORLD_W / 2 - canvas.width / 2, y: 0 };
 
+// ─── Kill Player ──────────────────────────────────────────────────────────────
+function killPlayer() {
+  for (let p = 0; p < 16; p++) particles.push(new Particle(player.x, player.y, player.color));
+  highScore = Math.max(highScore, score);
+  playDeathSound();
+  if (playerName) saveLB(playerName, score, eatCount);
+  gameState = 'dead';
+  setTimeout(() => { if (gameState === 'dead') showLeaderboard(); }, 1500);
+}
+
 // ─── Start Game ───────────────────────────────────────────────────────────────
 function startGame() {
   for (const k in keys) keys[k] = false;
@@ -153,6 +163,8 @@ function loop() {
   drawCoralLayer(coralBack);
   drawCoralLayer(coralMid, Math.sin(frameCount * 0.0008) * 3);
   drawSeaweed();
+  drawFishingHooks();
+  drawAnchors();
 
   // ── Playing ──
   if (gameState === 'playing') {
@@ -188,6 +200,28 @@ function loop() {
         if (playerName) saveLB(playerName, score, eatCount);
         gameState = 'dead';
         setTimeout(() => { if (gameState === 'dead') showLeaderboard(); }, 1500);
+      }
+    }
+
+    // Hook collision
+    if (gameState === 'playing') {
+      for (const h of fishingHooks) {
+        if (Math.hypot(h.x - player.x, h.hookY - player.y) < h.size * 1.2 + player.size * 0.5) {
+          floatTexts.push(new FloatText(player.x, player.y - player.size - 30, '🪝 HOOKED!', '#f5c518', 24));
+          killPlayer();
+          break;
+        }
+      }
+    }
+
+    // Anchor collision
+    if (gameState === 'playing') {
+      for (const a of shipAnchors) {
+        if (Math.hypot(a.x - player.x, a.y - player.y) < a.size * 0.65 + player.size * 0.5) {
+          floatTexts.push(new FloatText(player.x, player.y - player.size - 30, '⚓ CRUSHED!', '#78909c', 24));
+          killPlayer();
+          break;
+        }
       }
     }
 
