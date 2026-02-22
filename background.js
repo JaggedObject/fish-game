@@ -1,3 +1,90 @@
+// ─── Coral ────────────────────────────────────────────────────────────────────
+function generateCoralLayer(count, yMin, yMax, brightness) {
+  const hues = [0, 30, 270, 300];
+  return Array.from({ length: count }, () => {
+    const type = ['fan', 'tube', 'brain'][Math.floor(Math.random() * 3)];
+    const size = (yMax > 500 ? 14 : 22) + Math.random() * (yMax > 500 ? 14 : 20);
+    const extra = {};
+    if (type === 'tube') {
+      const n = 3 + Math.floor(Math.random() * 2);
+      extra.tubes = Array.from({ length: n }, (_, i) => ({
+        ox:     (i - (n - 1) / 2) * size * 0.38,
+        height: size * (0.5 + Math.random() * 0.6),
+      }));
+    } else if (type === 'brain') {
+      extra.grooves = Array.from({ length: 4 }, () => ({
+        ox:  (Math.random() - 0.5) * size * 0.6,
+        cpx: (Math.random() - 0.5) * size * 0.3,
+      }));
+    }
+    return {
+      x: 30 + Math.random() * (canvas.width - 60),
+      y: yMin + Math.random() * (yMax - yMin),
+      type, size, brightness,
+      hue: hues[Math.floor(Math.random() * hues.length)],
+      ...extra,
+    };
+  });
+}
+
+const coralBack = generateCoralLayer(9, 460, 560, 0.6);
+const coralMid  = generateCoralLayer(6, 400, 520, 0.85);
+
+function drawCoralFan(c) {
+  ctx.strokeStyle = `hsl(${c.hue},60%,${Math.round(22 * c.brightness)}%)`;
+  ctx.lineWidth = 2;
+  for (let i = -3; i <= 3; i++) {
+    const angle = (i / 3) * (Math.PI * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(c.x, c.y);
+    ctx.quadraticCurveTo(
+      c.x + Math.sin(angle * 0.5) * c.size * 0.4, c.y - c.size * 0.5,
+      c.x + Math.sin(angle) * c.size,              c.y - c.size
+    );
+    ctx.stroke();
+  }
+}
+
+function drawCoralTube(c) {
+  ctx.fillStyle = `hsl(${c.hue},50%,${Math.round(18 * c.brightness)}%)`;
+  const tw = c.size * 0.16;
+  c.tubes.forEach(t => {
+    const tx = c.x + t.ox;
+    ctx.fillRect(tx - tw / 2, c.y - t.height, tw, t.height);
+    ctx.beginPath();
+    ctx.arc(tx, c.y - t.height, tw / 2, Math.PI, 0);
+    ctx.fill();
+  });
+}
+
+function drawCoralBrain(c) {
+  ctx.fillStyle = `hsl(${c.hue},45%,${Math.round(16 * c.brightness)}%)`;
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, c.size * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = `hsl(${c.hue},55%,${Math.round(26 * c.brightness)}%)`;
+  ctx.lineWidth = 1.5;
+  c.grooves.forEach(g => {
+    ctx.beginPath();
+    ctx.moveTo(c.x + g.ox, c.y - c.size * 0.4);
+    ctx.quadraticCurveTo(c.x + g.ox + g.cpx, c.y, c.x + g.ox, c.y + c.size * 0.4);
+    ctx.stroke();
+  });
+}
+
+function drawCoralLayer(layer, drift = 0) {
+  ctx.save();
+  ctx.translate(drift, 0);
+  layer.forEach(c => {
+    ctx.save();
+    if      (c.type === 'fan')  drawCoralFan(c);
+    else if (c.type === 'tube') drawCoralTube(c);
+    else                        drawCoralBrain(c);
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
 // ─── Light Rays ───────────────────────────────────────────────────────────────
 const lightRays = Array.from({ length: 5 }, (_, i) => ({
   x:     100 + i * 160 + (Math.random() - 0.5) * 60,

@@ -120,6 +120,8 @@ function loop() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   drawLightRays();
+  drawCoralLayer(coralBack);
+  drawCoralLayer(coralMid, Math.sin(frameCount * 0.0008) * 3);
   drawSeaweed();
   updateBubbles();
   drawBubbles();
