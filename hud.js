@@ -7,6 +7,7 @@ const TIPS = [
   'A 6x COMBO triples your points per fish!',
   'Keep eating — big fish starve faster!',
   'A shark is hunting you — you cannot eat it, only outrun it!',
+  'Purple glowing fish are TOXIC — they shrink you!',
 ];
 let currentTip = 0;
 let tipCycle = 0;

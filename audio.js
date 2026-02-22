@@ -87,6 +87,21 @@ function playComboSound(combo) {
   });
 }
 
+function playToxicSound() {
+  const ac = getAudio();
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(400, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(80, ac.currentTime + 0.4);
+  gain.gain.setValueAtTime(0.3, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.start();
+  osc.stop(ac.currentTime + 0.45);
+}
+
 function playDeathSound() {
   const ac = getAudio();
   [0, 0.2, 0.4].forEach((delay, i) => {

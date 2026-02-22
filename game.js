@@ -62,6 +62,9 @@ let hunger = MAX_HUNGER;
 let shark = null;
 let sharkRespawnTimer = 0;
 
+// Toxic
+let poisonFlash = 0;
+
 // ─── Start Game ───────────────────────────────────────────────────────────────
 function startGame() {
   for (const k in keys) keys[k] = false;
@@ -80,6 +83,7 @@ function startGame() {
   hunger = MAX_HUNGER;
   shark = null;
   sharkRespawnTimer = 0;
+  poisonFlash = 0;
   currentTip = Math.floor(Math.random() * TIPS.length);
   tipCycle = 0;
   gameState = 'playing';
@@ -224,11 +228,20 @@ function loop() {
           if (frenzyLevel >= 3 && Math.random() < 0.4) extra++;
           for (let j = 0; j < extra; j++) enemies.push(new EnemyFish(player.size));
 
-          score += pts;
-          for (let p = 0; p < 8; p++) particles.push(new Particle(e.x, e.y, e.color));
-          floatTexts.push(new FloatText(e.x, e.y - e.size, `+${pts}`, '#ffffff'));
-          player.eat(e.size);
-          playEatSound(e.size);
+          if (e.toxic) {
+            player.size = Math.max(12, player.size - player.size * 0.18);
+            player.mouthTimer = 20;
+            score += Math.ceil(e.size * 0.5);
+            poisonFlash = 18;
+            floatTexts.push(new FloatText(e.x, e.y - e.size, '☠ TOXIC!', '#ce93d8', 20));
+            playToxicSound();
+          } else {
+            score += pts;
+            for (let p = 0; p < 8; p++) particles.push(new Particle(e.x, e.y, e.color));
+            floatTexts.push(new FloatText(e.x, e.y - e.size, `+${pts}`, '#ffffff'));
+            player.eat(e.size);
+            playEatSound(e.size);
+          }
           hunger = MAX_HUNGER;
           enemies.splice(i, 1);
 
@@ -255,6 +268,13 @@ function loop() {
     for (let i = floatTexts.length - 1; i >= 0; i--) {
       floatTexts[i].update(); floatTexts[i].draw();
       if (floatTexts[i].life <= 0) floatTexts.splice(i, 1);
+    }
+
+    // Poison flash overlay
+    if (poisonFlash > 0) {
+      ctx.fillStyle = `rgba(171,71,188,${(poisonFlash / 18 * 0.28).toFixed(3)})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      poisonFlash--;
     }
 
     // Shark update + collision

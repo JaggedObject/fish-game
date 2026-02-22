@@ -153,7 +153,10 @@ class EnemyFish {
     const minSize = Math.max(8, playerSize * 0.28);
     const maxSize = Math.min(75, playerSize * 2.3);
     this.size = minSize + Math.random() * (maxSize - minSize);
-    this.color = FISH_COLORS[Math.floor(Math.random() * FISH_COLORS.length)];
+    this.toxic = Math.random() < 0.15;
+    this.color = this.toxic
+      ? '#ce93d8'
+      : FISH_COLORS[Math.floor(Math.random() * FISH_COLORS.length)];
     this.active = true;
     this.mouthTimer = 0;
 
@@ -194,7 +197,20 @@ class EnemyFish {
   draw() {
     const facing = Math.abs(this.vx) >= Math.abs(this.vy) ? this.vx >= 0 : this.vx >= 0;
     const mouthOpen = this.mouthTimer > 0 ? Math.sin((this.mouthTimer / 20) * Math.PI) : 0;
-    drawFish(this.x, this.y, this.size, this.color, facing, mouthOpen);
+    if (this.toxic) {
+      ctx.save();
+      ctx.shadowColor = '#ab47bc';
+      ctx.shadowBlur = 14 + Math.sin(frameCount * 0.12) * 6;
+      drawFish(this.x, this.y, this.size, this.color, facing, mouthOpen);
+      ctx.restore();
+      ctx.save();
+      ctx.font = `bold ${Math.round(this.size * 0.55)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('☠', this.x, this.y + this.size * 0.18);
+      ctx.restore();
+    } else {
+      drawFish(this.x, this.y, this.size, this.color, facing, mouthOpen);
+    }
   }
 }
 
