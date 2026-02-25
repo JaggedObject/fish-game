@@ -296,7 +296,7 @@ function loop() {
             playToxicSound();
             hunger = MAX_HUNGER;
           } else if (e.debuff) {
-            hungerDebuffTimer = 600;
+            hungerDebuffTimer = 180;
             speedDebuffTimer = 600;
             player.mouthTimer = 20;
             score += Math.ceil(e.size * 0.3);
