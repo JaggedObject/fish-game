@@ -108,8 +108,10 @@ class Player {
   }
 
   get speed() {
-    const base = Math.max(1.6, this.baseSpeed - (this.size - 22) * 0.018);
-    return speedDebuffTimer > 0 ? base / 2 : base;
+    let s = Math.max(1.6, this.baseSpeed - (this.size - 22) * 0.018);
+    if (speedDebuffTimer > 0) s /= 2;
+    if (speedBuffTimer > 0) s *= 1.2;
+    return s;
   }
 
   update() {
@@ -144,6 +146,17 @@ class Player {
   }
 
   draw() {
+    if (immunityBuffTimer > 0) {
+      ctx.save();
+      ctx.shadowColor = '#ffd740';
+      ctx.shadowBlur = 18 + Math.sin(frameCount * 0.18) * 8;
+      ctx.strokeStyle = `rgba(255,215,64,${(0.5 + 0.3 * Math.sin(frameCount * 0.15)).toFixed(3)})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y, this.size * 1.45, this.size * 1.0, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     const mouthOpen = this.mouthTimer > 0 ? Math.sin((this.mouthTimer / 20) * Math.PI) : 0;
     drawFish(this.x, this.y, this.size, this.color, this.facingRight, mouthOpen);
   }
@@ -301,6 +314,45 @@ class Particle {
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ─── Fish Food ────────────────────────────────────────────────────────────────
+class FishFood {
+  constructor() {
+    this.x = 100 + Math.random() * (WORLD_W - 200);
+    this.y = 0;
+    this.vx = (Math.random() - 0.5) * 0.5;
+    this.vy = 0.5 + Math.random() * 0.4;
+    this.size = 12;
+    this.active = true;
+    this.life = 1800;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life--;
+    if (this.life <= 0) this.active = false;
+    if (this.y > camera.y + canvas.height + 200) this.active = false;
+  }
+
+  draw() {
+    ctx.save();
+    ctx.shadowColor = '#ffb74d';
+    ctx.shadowBlur = 10 + Math.sin(frameCount * 0.1) * 4;
+    const offsets = [[-5, -4], [4, -5], [0, 1], [-4, 5], [5, 3]];
+    ctx.fillStyle = '#c68642';
+    for (const [ox, oy] of offsets) {
+      ctx.beginPath();
+      ctx.ellipse(this.x + ox, this.y + oy, 3.5, 2.5, Math.atan2(oy, ox), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#ffcc80';
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.y, 3, 2, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }

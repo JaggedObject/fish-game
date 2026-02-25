@@ -69,6 +69,13 @@ let poisonFlash = 0;
 let hungerDebuffTimer = 0;
 let speedDebuffTimer = 0;
 
+// Buffs
+let speedBuffTimer = 0;
+let immunityBuffTimer = 0;
+
+// Fish food
+let fishFoods = [];
+
 // Camera (world-space top-left of viewport)
 let camera = { x: WORLD_W / 2 - canvas.width / 2, y: 0 };
 
@@ -103,6 +110,9 @@ function startGame() {
   poisonFlash = 0;
   hungerDebuffTimer = 0;
   speedDebuffTimer = 0;
+  speedBuffTimer = 0;
+  immunityBuffTimer = 0;
+  fishFoods = [];
   camera.x = player.x - canvas.width  / 2;
   camera.y = player.y - canvas.height / 2;
   currentTip = Math.floor(Math.random() * TIPS.length);
@@ -211,6 +221,8 @@ function loop() {
 
     if (hungerDebuffTimer > 0) { hunger = 0; hungerDebuffTimer--; }
     if (speedDebuffTimer > 0) speedDebuffTimer--;
+    if (speedBuffTimer > 0) speedBuffTimer--;
+    if (immunityBuffTimer > 0) immunityBuffTimer--;
 
     // Hook collision
     if (gameState === 'playing') {
@@ -231,6 +243,22 @@ function loop() {
           killPlayer();
           break;
         }
+      }
+    }
+
+    // Fish food: spawn every 10s, update, and collect
+    if (frameCount % 600 === 0) fishFoods.push(new FishFood());
+    for (let i = fishFoods.length - 1; i >= 0; i--) {
+      const f = fishFoods[i];
+      f.update();
+      if (!f.active) { fishFoods.splice(i, 1); continue; }
+      f.draw();
+      if (Math.hypot(f.x - player.x, f.y - player.y) < f.size + player.size * 0.8) {
+        speedBuffTimer = 900;
+        immunityBuffTimer = 300;
+        floatTexts.push(new FloatText(player.x, player.y - player.size - 30, '⚡ POWERED UP!', '#ffd740', 24));
+        playEatSound(60);
+        fishFoods.splice(i, 1);
       }
     }
 
@@ -313,7 +341,7 @@ function loop() {
           }
           enemies.splice(i, 1);
 
-        } else if (e.size > player.size * 1.1) {
+        } else if (e.size > player.size * 1.1 && immunityBuffTimer <= 0) {
           // ── Eaten ──
           e.mouthTimer = 20;
           for (let p = 0; p < 16; p++) particles.push(new Particle(player.x, player.y, player.color));
@@ -347,7 +375,7 @@ function loop() {
       } else {
         shark.draw();
         const sharkDist = Math.hypot(shark.x - player.x, shark.y - player.y);
-        if (sharkDist < shark.size * 0.6 + player.size * 0.75 && gameState === 'playing') {
+        if (sharkDist < shark.size * 0.6 + player.size * 0.75 && gameState === 'playing' && immunityBuffTimer <= 0) {
           for (let p = 0; p < 16; p++) particles.push(new Particle(player.x, player.y, player.color));
           highScore = Math.max(highScore, score);
           playDeathSound();

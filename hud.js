@@ -9,6 +9,7 @@ const TIPS = [
   'A shark is hunting you — you cannot eat it, only outrun it!',
   'Purple glowing fish are TOXIC — they shrink you!',
   'Brown ⚠ fish are CURSED — they drain hunger and halve your speed for 10s!',
+  'Fish food drifts from the surface — eat it for a speed boost and 5s of immunity!',
 ];
 let currentTip = 0;
 let tipCycle = 0;
@@ -90,26 +91,24 @@ function drawHUD() {
     ctx.fillText(`${comboCount}x COMBO`, canvas.width / 2, 32);
   }
 
-  // Debuff indicators (top right)
-  if (hungerDebuffTimer > 0 || speedDebuffTimer > 0) {
-    const panelW = 175;
+  // Status indicators (top right) — buffs and debuffs
+  const statusItems = [];
+  if (immunityBuffTimer > 0)  statusItems.push({ label: `🛡 IMMUNE  ${Math.ceil(immunityBuffTimer / 60)}s`,    color: '#ffd740' });
+  if (speedBuffTimer > 0)     statusItems.push({ label: `⚡ SPEED ×1.2  ${Math.ceil(speedBuffTimer / 60)}s`, color: '#69f0ae' });
+  if (hungerDebuffTimer > 0)  statusItems.push({ label: `🍽 STARVING  ${Math.ceil(hungerDebuffTimer / 60)}s`, color: '#a1887f' });
+  if (speedDebuffTimer > 0)   statusItems.push({ label: `🐌 SLOW ×0.5  ${Math.ceil(speedDebuffTimer / 60)}s`, color: '#a1887f' });
+  if (statusItems.length > 0) {
+    const panelW = 185;
     const panelX = canvas.width - panelW - 10;
-    const numDebuffs = (hungerDebuffTimer > 0 ? 1 : 0) + (speedDebuffTimer > 0 ? 1 : 0);
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(panelX, 10, panelW, 14 + numDebuffs * 22);
+    ctx.fillRect(panelX, 10, panelW, 14 + statusItems.length * 22);
     ctx.textAlign = 'left';
     ctx.font = 'bold 12px Arial';
     let lineY = 26;
-    if (hungerDebuffTimer > 0) {
-      const secs = Math.ceil(hungerDebuffTimer / 60);
-      ctx.fillStyle = '#a1887f';
-      ctx.fillText(`🍽 STARVING  ${secs}s`, panelX + 8, lineY);
+    for (const item of statusItems) {
+      ctx.fillStyle = item.color;
+      ctx.fillText(item.label, panelX + 8, lineY);
       lineY += 22;
-    }
-    if (speedDebuffTimer > 0) {
-      const secs = Math.ceil(speedDebuffTimer / 60);
-      ctx.fillStyle = '#a1887f';
-      ctx.fillText(`🐌 SLOW ×0.5  ${secs}s`, panelX + 8, lineY);
     }
   }
 
