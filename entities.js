@@ -108,7 +108,8 @@ class Player {
   }
 
   get speed() {
-    return Math.max(1.6, this.baseSpeed - (this.size - 22) * 0.018);
+    const base = Math.max(1.6, this.baseSpeed - (this.size - 22) * 0.018);
+    return speedDebuffTimer > 0 ? base / 2 : base;
   }
 
   update() {
@@ -165,9 +166,12 @@ class EnemyFish {
     const maxSize = Math.min(75, playerSize * 2.3);
     this.size = minSize + Math.random() * (maxSize - minSize);
     this.toxic = Math.random() < 0.15;
+    this.debuff = !this.toxic && Math.random() < 0.12;
     this.color = this.toxic
       ? '#ce93d8'
-      : FISH_COLORS[Math.floor(Math.random() * FISH_COLORS.length)];
+      : this.debuff
+        ? '#8d6e63'
+        : FISH_COLORS[Math.floor(Math.random() * FISH_COLORS.length)];
     this.active = true;
     this.mouthTimer = 0;
 
@@ -222,6 +226,17 @@ class EnemyFish {
       ctx.font = `bold ${Math.round(this.size * 0.55)}px Arial`;
       ctx.textAlign = 'center';
       ctx.fillText('☠', this.x, this.y + this.size * 0.18);
+      ctx.restore();
+    } else if (this.debuff) {
+      ctx.save();
+      ctx.shadowColor = '#5d4037';
+      ctx.shadowBlur = 14 + Math.sin(frameCount * 0.12) * 6;
+      drawFish(this.x, this.y, this.size, this.color, facing, mouthOpen);
+      ctx.restore();
+      ctx.save();
+      ctx.font = `bold ${Math.round(this.size * 0.55)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠', this.x, this.y + this.size * 0.18);
       ctx.restore();
     } else {
       drawFish(this.x, this.y, this.size, this.color, facing, mouthOpen);

@@ -65,6 +65,10 @@ let sharkRespawnTimer = 0;
 // Toxic
 let poisonFlash = 0;
 
+// Debuffs
+let hungerDebuffTimer = 0;
+let speedDebuffTimer = 0;
+
 // Camera (world-space top-left of viewport)
 let camera = { x: WORLD_W / 2 - canvas.width / 2, y: 0 };
 
@@ -97,6 +101,8 @@ function startGame() {
   shark = null;
   sharkRespawnTimer = 0;
   poisonFlash = 0;
+  hungerDebuffTimer = 0;
+  speedDebuffTimer = 0;
   camera.x = player.x - canvas.width  / 2;
   camera.y = player.y - canvas.height / 2;
   currentTip = Math.floor(Math.random() * TIPS.length);
@@ -203,6 +209,9 @@ function loop() {
       }
     }
 
+    if (hungerDebuffTimer > 0) { hunger = 0; hungerDebuffTimer--; }
+    if (speedDebuffTimer > 0) speedDebuffTimer--;
+
     // Hook collision
     if (gameState === 'playing') {
       for (const h of fishingHooks) {
@@ -285,14 +294,23 @@ function loop() {
             poisonFlash = 18;
             floatTexts.push(new FloatText(e.x, e.y - e.size, '☠ TOXIC!', '#ce93d8', 20));
             playToxicSound();
+            hunger = MAX_HUNGER;
+          } else if (e.debuff) {
+            hungerDebuffTimer = 600;
+            speedDebuffTimer = 600;
+            player.mouthTimer = 20;
+            score += Math.ceil(e.size * 0.3);
+            for (let p = 0; p < 8; p++) particles.push(new Particle(e.x, e.y, '#8d6e63'));
+            floatTexts.push(new FloatText(e.x, e.y - e.size, '⚠ DEBUFFED!', '#a1887f', 22));
+            playToxicSound();
           } else {
             score += pts;
             for (let p = 0; p < 8; p++) particles.push(new Particle(e.x, e.y, e.color));
             floatTexts.push(new FloatText(e.x, e.y - e.size, `+${pts}`, '#ffffff'));
             player.eat(e.size);
             playEatSound(e.size);
+            hunger = MAX_HUNGER;
           }
-          hunger = MAX_HUNGER;
           enemies.splice(i, 1);
 
         } else if (e.size > player.size * 1.1) {

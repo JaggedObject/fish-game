@@ -8,6 +8,7 @@ const TIPS = [
   'Keep eating — big fish starve faster!',
   'A shark is hunting you — you cannot eat it, only outrun it!',
   'Purple glowing fish are TOXIC — they shrink you!',
+  'Brown ⚠ fish are CURSED — they drain hunger and halve your speed for 10s!',
 ];
 let currentTip = 0;
 let tipCycle = 0;
@@ -87,6 +88,29 @@ function drawHUD() {
     ctx.font = `bold ${16 + Math.min(comboCount, 6)}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillText(`${comboCount}x COMBO`, canvas.width / 2, 32);
+  }
+
+  // Debuff indicators (top right)
+  if (hungerDebuffTimer > 0 || speedDebuffTimer > 0) {
+    const panelW = 175;
+    const panelX = canvas.width - panelW - 10;
+    const numDebuffs = (hungerDebuffTimer > 0 ? 1 : 0) + (speedDebuffTimer > 0 ? 1 : 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(panelX, 10, panelW, 14 + numDebuffs * 22);
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 12px Arial';
+    let lineY = 26;
+    if (hungerDebuffTimer > 0) {
+      const secs = Math.ceil(hungerDebuffTimer / 60);
+      ctx.fillStyle = '#a1887f';
+      ctx.fillText(`🍽 STARVING  ${secs}s`, panelX + 8, lineY);
+      lineY += 22;
+    }
+    if (speedDebuffTimer > 0) {
+      const secs = Math.ceil(speedDebuffTimer / 60);
+      ctx.fillStyle = '#a1887f';
+      ctx.fillText(`🐌 SLOW ×0.5  ${secs}s`, panelX + 8, lineY);
+    }
   }
 
   // Pro-tip bar at bottom
