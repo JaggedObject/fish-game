@@ -179,7 +179,8 @@ class EnemyFish {
     const maxSize = Math.min(75, playerSize * 2.3);
     this.size = minSize + Math.random() * (maxSize - minSize);
     this.toxic = Math.random() < 0.15;
-    this.debuff = !this.toxic && Math.random() < 0.12;
+    const debuffChance = Math.max(0.04, 0.12 - (playerSize / 85) * 0.08);
+    this.debuff = !this.toxic && Math.random() < debuffChance;
     this.color = this.toxic
       ? '#ce93d8'
       : this.debuff
@@ -262,8 +263,8 @@ class Shark {
   constructor() {
     this.size = 96;
     this.color = '#455a64';
-    this.x = -130;
-    this.y = Math.random() * canvas.height;
+    this.x = camera.x - 130;
+    this.y = camera.y + Math.random() * canvas.height;
     this.facingRight = true;
     this.active = true;
   }
@@ -281,9 +282,9 @@ class Shark {
     this.y += (dy / dist) * this.speed;
     this.facingRight = dx >= 0;
 
-    const m = 200;
-    if (this.x < -m || this.x > canvas.width + m ||
-        this.y < -m || this.y > canvas.height + m) {
+    const m = 300;
+    if (this.x < camera.x - m || this.x > camera.x + canvas.width + m ||
+        this.y < camera.y - m || this.y > camera.y + canvas.height + m) {
       this.active = false;
     }
   }
