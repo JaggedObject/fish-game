@@ -94,9 +94,9 @@ function drawHUD() {
   // Status indicators (top right) — buffs and debuffs
   const statusItems = [];
   if (immunityBuffTimer > 0)  statusItems.push({ label: `🛡 IMMUNE  ${Math.ceil(immunityBuffTimer / 60)}s`,    color: '#ffd740' });
-  if (speedBuffTimer > 0)     statusItems.push({ label: `⚡ SPEED ×1.2  ${Math.ceil(speedBuffTimer / 60)}s`, color: '#69f0ae' });
+  if (speedBuffTimer > 0)     statusItems.push({ label: `⚡ SPEED ×1.5  ${Math.ceil(speedBuffTimer / 60)}s`, color: '#69f0ae' });
   if (hungerDebuffTimer > 0)  statusItems.push({ label: `🍽 STARVING  ${Math.ceil(hungerDebuffTimer / 60)}s`, color: '#a1887f' });
-  if (speedDebuffTimer > 0)   statusItems.push({ label: `🐌 SLOW ×0.5  ${Math.ceil(speedDebuffTimer / 60)}s`, color: '#a1887f' });
+  if (speedDebuffTimer > 0)   statusItems.push({ label: `🐌 SLOW ÷1.5  ${Math.ceil(speedDebuffTimer / 60)}s`, color: '#a1887f' });
   if (statusItems.length > 0) {
     const panelW = 185;
     const panelX = canvas.width - panelW - 10;

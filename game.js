@@ -246,8 +246,12 @@ function loop() {
       }
     }
 
-    // Fish food: spawn every 10s, update, and collect
-    if (frameCount % 600 === 0) fishFoods.push(new FishFood());
+    // Fish food: spawn cluster every 10s, update, and collect
+    if (frameCount % 600 === 0) {
+      const cx = 100 + Math.random() * (WORLD_W - 200);
+      const n = 3 + Math.floor(Math.random() * 4);
+      for (let k = 0; k < n; k++) fishFoods.push(new FishFood(cx));
+    }
     for (let i = fishFoods.length - 1; i >= 0; i--) {
       const f = fishFoods[i];
       f.update();

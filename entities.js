@@ -109,8 +109,8 @@ class Player {
 
   get speed() {
     let s = Math.max(1.6, this.baseSpeed - (this.size - 22) * 0.018);
-    if (speedDebuffTimer > 0) s /= 2;
-    if (speedBuffTimer > 0) s *= 1.2;
+    if (speedDebuffTimer > 0) s /= 1.5;
+    if (speedBuffTimer > 0) s *= 1.5;
     return s;
   }
 
@@ -321,26 +321,36 @@ class Particle {
 
 // ─── Fish Food ────────────────────────────────────────────────────────────────
 class FishFood {
-  constructor() {
-    this.x = 100 + Math.random() * (WORLD_W - 200);
-    this.y = 0;
+  constructor(clusterX) {
+    const cx = clusterX !== undefined ? clusterX : 100 + Math.random() * (WORLD_W - 200);
+    this.x = Math.max(50, Math.min(WORLD_W - 50, cx + (Math.random() - 0.5) * 70));
+    this.y = -5 - Math.random() * 20;
     this.vx = (Math.random() - 0.5) * 0.5;
     this.vy = 0.5 + Math.random() * 0.4;
     this.size = 12;
     this.active = true;
-    this.life = 1800;
+    this.alpha = 1;
+    this.dissolving = false;
   }
 
   update() {
+    if (this.dissolving) {
+      this.alpha -= 0.03;
+      if (this.alpha <= 0) this.active = false;
+      return;
+    }
     this.x += this.vx;
     this.y += this.vy;
-    this.life--;
-    if (this.life <= 0) this.active = false;
-    if (this.y > camera.y + canvas.height + 200) this.active = false;
+    if (this.y >= WORLD_H) {
+      this.y = WORLD_H;
+      this.vy = 0;
+      this.dissolving = true;
+    }
   }
 
   draw() {
     ctx.save();
+    ctx.globalAlpha = this.alpha;
     ctx.shadowColor = '#ffb74d';
     ctx.shadowBlur = 10 + Math.sin(frameCount * 0.1) * 4;
     const offsets = [[-5, -4], [4, -5], [0, 1], [-4, 5], [5, 3]];
