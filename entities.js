@@ -178,7 +178,8 @@ class EnemyFish {
     const minSize = Math.max(8, playerSize * 0.28);
     const maxSize = Math.min(75, playerSize * 2.3);
     this.size = minSize + Math.random() * (maxSize - minSize);
-    this.toxic = Math.random() < 0.15;
+    const toxicChance = Math.max(0.07, 0.15 - (playerSize / 85) * 0.08);
+    this.toxic = Math.random() < toxicChance;
     const debuffChance = Math.max(0.04, 0.12 - (playerSize / 85) * 0.08);
     this.debuff = !this.toxic && Math.random() < debuffChance;
     this.color = this.toxic
