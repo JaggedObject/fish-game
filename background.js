@@ -173,12 +173,17 @@ function drawBubbles() {
 }
 
 // ─── Fishing Hooks ────────────────────────────────────────────────────────────
-const fishingHooks = Array.from({ length: 14 }, () => ({
-  x:       80 + Math.random() * (WORLD_W - 160),
-  lineTop: 0,
-  hookY:   500 + Math.random() * 1200,
-  size:    10  + Math.random() * 8,
-}));
+const fishingHooks = Array.from({ length: 14 }, () => {
+  const hookY = 500 + Math.random() * 1200;
+  return {
+    x:       80 + Math.random() * (WORLD_W - 160),
+    lineTop: 0,
+    hookY,
+    targetY: hookY,
+    vy:      0,
+    size:    10 + Math.random() * 8,
+  };
+});
 
 function drawFishingHooks() {
   fishingHooks.forEach(h => {
@@ -225,11 +230,16 @@ function drawFishingHooks() {
 }
 
 // ─── Ship Anchors ─────────────────────────────────────────────────────────────
-const shipAnchors = Array.from({ length: 10 }, () => ({
-  x:    100 + Math.random() * (WORLD_W - 200),
-  y:    WORLD_H - 100 - Math.random() * 350,
-  size: 24  + Math.random() * 14,
-}));
+const shipAnchors = Array.from({ length: 10 }, () => {
+  const y = WORLD_H - 100 - Math.random() * 350;
+  return {
+    x:       100 + Math.random() * (WORLD_W - 200),
+    y,
+    targetY: y,
+    vy:      0,
+    size:    24 + Math.random() * 14,
+  };
+});
 
 function drawAnchors() {
   shipAnchors.forEach(a => {

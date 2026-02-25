@@ -61,6 +61,11 @@ let hunger = MAX_HUNGER;
 // Shark
 let shark = null;
 let sharkRespawnTimer = 0;
+let sharkTimer = 0;
+let sharkWarningTimer = 0;
+
+// Reel timer (hooks/anchors animate every 15s)
+let reelTimer = 900;
 
 // Toxic
 let poisonFlash = 0;
@@ -107,6 +112,9 @@ function startGame() {
   hunger = MAX_HUNGER;
   shark = null;
   sharkRespawnTimer = 0;
+  sharkTimer = 0;
+  sharkWarningTimer = 0;
+  reelTimer = 900;
   poisonFlash = 0;
   hungerDebuffTimer = 0;
   speedDebuffTimer = 0;
@@ -192,8 +200,14 @@ function loop() {
     if (!shark) {
       if (sharkRespawnTimer > 0) {
         sharkRespawnTimer--;
+      } else if (sharkWarningTimer > 0) {
+        sharkWarningTimer--;
+        if (sharkWarningTimer === 0) {
+          shark = new Shark();
+          sharkTimer = 1800;
+        }
       } else if (frenzyLvl >= 2 || frameCount > 3600) {
-        shark = new Shark();
+        sharkWarningTimer = 180;
         floatTexts.push(new FloatText(player.x, player.y - 80, '🦈 SHARK!', '#ff5252', 28));
       }
     }
@@ -263,6 +277,54 @@ function loop() {
         floatTexts.push(new FloatText(player.x, player.y - player.size - 30, '⚡ POWERED UP!', '#ffd740', 24));
         playEatSound(60);
         fishFoods.splice(i, 1);
+      }
+    }
+
+    // Animate hooks and anchors
+    for (const h of fishingHooks) {
+      if (h.vy !== 0) {
+        h.hookY += h.vy;
+        if (h.vy < 0 && h.hookY <= -300) {
+          h.hookY = -300;
+          h.targetY = 500 + Math.random() * 1200;
+          h.vy = 1.5;
+        } else if (h.vy > 0 && h.hookY >= h.targetY) {
+          h.hookY = h.targetY;
+          h.vy = 0;
+        }
+      }
+    }
+    for (const a of shipAnchors) {
+      if (a.vy !== 0) {
+        a.y += a.vy;
+        if (a.vy < 0 && a.y <= a.targetY) { a.y = a.targetY; a.vy = 0; }
+        if (a.vy > 0 && a.y >= a.targetY) { a.y = a.targetY; a.vy = 0; }
+      }
+    }
+
+    // Reel timer — every 15s one hazard reels up, another goes down
+    reelTimer--;
+    if (reelTimer <= 0) {
+      reelTimer = 900;
+      const pool = [
+        ...fishingHooks.map(o => ({ t: 'hook', o })),
+        ...shipAnchors.map(o => ({ t: 'anchor', o })),
+      ];
+      const i1 = Math.floor(Math.random() * pool.length);
+      let i2; do { i2 = Math.floor(Math.random() * pool.length); } while (i2 === i1);
+      const up = pool[i1], dn = pool[i2];
+      if (up.t === 'hook') {
+        up.o.vy = -2;
+      } else {
+        up.o.targetY = WORLD_H - 700 - Math.random() * 300;
+        up.o.vy = -1.5;
+      }
+      if (dn.t === 'hook') {
+        dn.o.targetY = 500 + Math.random() * 1200;
+        dn.o.vy = 1.5;
+      } else {
+        dn.o.targetY = WORLD_H - 30 - Math.random() * 80;
+        dn.o.vy = 1.5;
       }
     }
 
@@ -372,20 +434,26 @@ function loop() {
 
     // Shark update + collision
     if (shark) {
-      shark.update();
-      if (!shark.active) {
+      sharkTimer--;
+      if (sharkTimer <= 0) {
         shark = null;
-        sharkRespawnTimer = 900;
+        sharkRespawnTimer = 1200;
       } else {
-        shark.draw();
-        const sharkDist = Math.hypot(shark.x - player.x, shark.y - player.y);
-        if (sharkDist < shark.size * 0.6 + player.size * 0.75 && gameState === 'playing' && immunityBuffTimer <= 0) {
-          for (let p = 0; p < 16; p++) particles.push(new Particle(player.x, player.y, player.color));
-          highScore = Math.max(highScore, score);
-          playDeathSound();
-          if (playerName) saveLB(playerName, score, eatCount);
-          gameState = 'dead';
-          setTimeout(() => { if (gameState === 'dead') showLeaderboard(); }, 1500);
+        shark.update();
+        if (!shark.active) {
+          shark = null;
+          sharkRespawnTimer = 900;
+        } else {
+          shark.draw();
+          const sharkDist = Math.hypot(shark.x - player.x, shark.y - player.y);
+          if (sharkDist < shark.size * 0.6 + player.size * 0.75 && gameState === 'playing' && immunityBuffTimer <= 0) {
+            for (let p = 0; p < 16; p++) particles.push(new Particle(player.x, player.y, player.color));
+            highScore = Math.max(highScore, score);
+            playDeathSound();
+            if (playerName) saveLB(playerName, score, eatCount);
+            gameState = 'dead';
+            setTimeout(() => { if (gameState === 'dead') showLeaderboard(); }, 1500);
+          }
         }
       }
     }
